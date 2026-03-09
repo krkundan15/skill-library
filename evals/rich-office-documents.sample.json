@@ -1,0 +1,52 @@
+{
+  "name": "rich-office-documents-feedback-loop",
+  "skill_name": "rich-office-documents",
+  "skill_path": "rich-office-documents/SKILL.md",
+  "run_root": "outputs/skill-tests",
+  "max_iterations": 3,
+  "cases": [
+    {
+      "id": "board-deck-pdf-bundle",
+      "prompt": "Use $rich-office-documents to create a board-ready 6-slide quarterly operations review deck with a matching PDF export. Keep a restrained industrial palette, strong visual hierarchy, and save everything to outputs/q2-ops-review/.",
+      "success_criteria": [
+        "The response routes through the rich-office-documents skill.",
+        "The editable source and PDF export share one visual system.",
+        "The workflow writes all artifacts to outputs/q2-ops-review/.",
+        "The output feels intentionally designed rather than default-template plain."
+      ],
+      "tags": [
+        "bundle",
+        "pptx",
+        "pdf"
+      ]
+    },
+    {
+      "id": "proposal-docx-pdf-pack",
+      "prompt": "Use $rich-office-documents to create a polished client proposal in DOCX with a matching PDF. The document should include a cover page, section dividers, branded tables, and save all artifacts to outputs/client-proposal/.",
+      "success_criteria": [
+        "The response chooses DOCX as the editable source of truth.",
+        "The proposed design brief includes audience, purpose, tone, palette, and recurring components.",
+        "The PDF is treated as an export after the DOCX source is correct."
+      ],
+      "tags": [
+        "bundle",
+        "docx",
+        "pdf"
+      ]
+    },
+    {
+      "id": "dashboard-workbook-pack",
+      "prompt": "Use $rich-office-documents to create an executive KPI workbook with assumptions, calculations, and dashboard sheets plus a short PPTX summary. Save everything to outputs/executive-kpi-pack/.",
+      "success_criteria": [
+        "The workbook uses formulas instead of hardcoded calculations.",
+        "The workbook separates assumptions, calculations, and outputs.",
+        "The PPTX summary reuses the workbook's metric names and visual language."
+      ],
+      "tags": [
+        "bundle",
+        "xlsx",
+        "pptx"
+      ]
+    }
+  ]
+}
