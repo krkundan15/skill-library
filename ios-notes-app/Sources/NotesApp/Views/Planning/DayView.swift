@@ -20,7 +20,7 @@ struct DayView: View {
             // Date navigation
             HStack {
                 Button {
-                    date = Calendar.current.date(byAdding: .day, value: -1, to: date)!
+                    date = Calendar.current.date(byAdding: .day, value: -1, to: date) ?? date
                 } label: {
                     Image(systemName: "chevron.left")
                 }
@@ -40,7 +40,7 @@ struct DayView: View {
                 Spacer()
 
                 Button {
-                    date = Calendar.current.date(byAdding: .day, value: 1, to: date)!
+                    date = Calendar.current.date(byAdding: .day, value: 1, to: date) ?? date
                 } label: {
                     Image(systemName: "chevron.right")
                 }

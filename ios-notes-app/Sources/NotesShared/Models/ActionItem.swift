@@ -9,7 +9,7 @@ public final class ActionItem {
     public var dueDate: Date?
     public var createdAt: Date
     /// Back-reference to the note this was extracted from
-    public var note: Note?
+    @Relationship public var note: Note?
 
     public init(title: String, dueDate: Date? = nil, note: Note? = nil) {
         self.id = UUID()

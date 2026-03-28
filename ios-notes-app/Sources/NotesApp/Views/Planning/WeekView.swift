@@ -19,7 +19,7 @@ struct WeekView: View {
             // Week navigation
             HStack {
                 Button {
-                    selectedDate = Calendar.current.date(byAdding: .weekOfYear, value: -1, to: selectedDate)!
+                    selectedDate = Calendar.current.date(byAdding: .weekOfYear, value: -1, to: selectedDate) ?? selectedDate
                 } label: {
                     Image(systemName: "chevron.left")
                 }
@@ -30,7 +30,7 @@ struct WeekView: View {
                 Spacer()
 
                 Button {
-                    selectedDate = Calendar.current.date(byAdding: .weekOfYear, value: 1, to: selectedDate)!
+                    selectedDate = Calendar.current.date(byAdding: .weekOfYear, value: 1, to: selectedDate) ?? selectedDate
                 } label: {
                     Image(systemName: "chevron.right")
                 }

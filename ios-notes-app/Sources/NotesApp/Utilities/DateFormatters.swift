@@ -59,7 +59,7 @@ enum DateFormatters {
     static func dayBounds(for date: Date) -> (start: Date, end: Date) {
         let cal = Calendar.current
         let start = cal.startOfDay(for: date)
-        let end = cal.date(byAdding: .day, value: 1, to: start)!
+        let end = cal.date(byAdding: .day, value: 1, to: start) ?? start.addingTimeInterval(86400)
         return (start, end)
     }
 }

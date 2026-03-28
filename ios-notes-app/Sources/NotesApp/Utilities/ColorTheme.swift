@@ -2,11 +2,16 @@ import SwiftUI
 import NotesShared
 
 extension NoteCategory {
-    /// Returns the SwiftUI Color for this category, preferring the asset catalog color.
+    /// Returns the SwiftUI Color for this category.
+    /// Uses the named asset catalog color when available (define "PersonalBlue" / "WorkOrange"
+    /// in Assets.xcassets); falls back to the built-in system color otherwise.
     public var color: Color {
-        // Color(colorName) works if the color is defined in Assets.xcassets;
-        // falls back to the system color if not found.
-        Color(colorName, bundle: .main)
+        #if canImport(UIKit)
+        if UIColor(named: colorName) != nil {
+            return Color(colorName, bundle: .main)
+        }
+        #endif
+        return systemColor
     }
 }
 

@@ -10,7 +10,6 @@ struct QuickCaptureView: View {
 
     @State private var text = ""
     @State private var category: NoteCategory = .personal
-    @State private var showVoice = false
     @FocusState private var isFocused: Bool
 
     var body: some View {
@@ -53,13 +52,12 @@ struct QuickCaptureView: View {
                         }
 
                     // Voice recorder
-                    VoiceRecorderView { transcription, audioPath in
+                    VoiceRecorderView { transcription, _ in
                         if text.isEmpty {
                             text = transcription
                         } else {
                             text += "\n" + transcription
                         }
-                        showVoice = false
                     }
                 }
                 .padding(.top)

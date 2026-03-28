@@ -6,6 +6,7 @@ import NotesShared
 struct NotesAppMain: App {
 
     let modelContainer: ModelContainer
+    @StateObject private var orchestrator = AIOrchestrator()
 
     init() {
         do {
@@ -18,6 +19,7 @@ struct NotesAppMain: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(orchestrator)
                 .onOpenURL { url in
                     // Handle notesapp://capture deep link from widget
                     if url.scheme == "notesapp", url.host == "capture" {

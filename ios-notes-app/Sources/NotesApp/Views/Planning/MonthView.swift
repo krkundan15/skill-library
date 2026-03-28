@@ -11,7 +11,7 @@ struct MonthView: View {
     private let weekdaySymbols = Calendar.current.veryShortWeekdaySymbols
 
     private var monthStart: Date {
-        Calendar.current.date(from: Calendar.current.dateComponents([.year, .month], from: selectedDate))!
+        Calendar.current.date(from: Calendar.current.dateComponents([.year, .month], from: selectedDate)) ?? selectedDate
     }
 
     private var daysInMonth: [Date?] {
@@ -35,7 +35,7 @@ struct MonthView: View {
             // Month navigation
             HStack {
                 Button {
-                    selectedDate = Calendar.current.date(byAdding: .month, value: -1, to: selectedDate)!
+                    selectedDate = Calendar.current.date(byAdding: .month, value: -1, to: selectedDate) ?? selectedDate
                 } label: {
                     Image(systemName: "chevron.left")
                 }
@@ -44,7 +44,7 @@ struct MonthView: View {
                     .font(.headline)
                 Spacer()
                 Button {
-                    selectedDate = Calendar.current.date(byAdding: .month, value: 1, to: selectedDate)!
+                    selectedDate = Calendar.current.date(byAdding: .month, value: 1, to: selectedDate) ?? selectedDate
                 } label: {
                     Image(systemName: "chevron.right")
                 }
