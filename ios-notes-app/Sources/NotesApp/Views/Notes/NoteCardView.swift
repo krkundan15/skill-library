@@ -17,6 +17,16 @@ struct NoteCardView: View {
                     .background(note.category.color.opacity(0.12))
                     .clipShape(Capsule())
 
+                if note.noteType == .meeting {
+                    Label(note.formattedDuration ?? "", systemImage: "mic.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.red)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.red.opacity(0.12))
+                        .clipShape(Capsule())
+                }
+
                 Spacer()
 
                 Text(DateFormatters.relative(note.createdAt))
@@ -26,9 +36,9 @@ struct NoteCardView: View {
 
             // Content snippet
             Text(note.snippet)
-                .font(.body)
+                .font(note.noteType == .meeting ? .body.weight(.semibold) : .body)
                 .foregroundStyle(AppColor.primaryText)
-                .lineLimit(3)
+                .lineLimit(note.noteType == .meeting ? 1 : 3)
 
             // Summary if available
             if let summary = note.summary {

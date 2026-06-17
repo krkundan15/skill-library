@@ -13,6 +13,26 @@ public final class OnDeviceNLPService: Sendable {
         return AIProcessingResult(summary: summary, actions: actions)
     }
 
+    /// Offline meeting fallback: splits the transcript into sentences and uses the
+    /// first few as an overview, with key noun/verb phrases as discussion points.
+    public func processMeeting(transcript: String) -> MeetingProcessingResult {
+        let sentences = transcript
+            .components(separatedBy: CharacterSet(charactersIn: ".!?\n"))
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+
+        let summary = sentences.prefix(2).joined(separator: ". ")
+        let keyPoints = Array(sentences.dropFirst(2).prefix(5))
+        let actions = extractKeyPhrases(from: transcript)
+
+        return MeetingProcessingResult(
+            summary: summary.isEmpty ? String(transcript.prefix(150)) : summary,
+            keyPoints: keyPoints,
+            decisions: [],
+            actions: actions
+        )
+    }
+
     // MARK: - Private
 
     private func buildSummary(from text: String) -> String {

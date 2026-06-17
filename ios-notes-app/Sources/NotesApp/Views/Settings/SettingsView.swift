@@ -3,8 +3,11 @@ import NotesShared
 
 struct SettingsView: View {
 
-    @State private var apiKey: String = KeychainHelper.load(key: "claude_api_key") ?? ""
-    @State private var useClaudeWhenOnline: Bool = UserDefaults.standard.bool(forKey: "useClaudeWhenOnline")
+    @EnvironmentObject private var orchestrator: AIOrchestrator
+
+    @State private var providerKind: AIProviderKind = .claude
+    @State private var claudeKey: String = KeychainHelper.load(key: AIProviderKind.claude.keychainKey!) ?? ""
+    @State private var deepSeekKey: String = KeychainHelper.load(key: AIProviderKind.deepseek.keychainKey!) ?? ""
     @State private var showKeySaved = false
 
     var body: some View {
@@ -12,28 +15,39 @@ struct SettingsView: View {
             Form {
                 // AI settings
                 Section {
-                    Toggle("Use Claude AI when online", isOn: $useClaudeWhenOnline)
-                        .onChange(of: useClaudeWhenOnline) { _, val in
-                            UserDefaults.standard.set(val, forKey: "useClaudeWhenOnline")
+                    Picker("AI Provider", selection: $providerKind) {
+                        ForEach(AIProviderKind.allCases, id: \.self) { kind in
+                            Text(kind.displayName).tag(kind)
                         }
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Anthropic API Key")
-                            .font(.subheadline)
-                        SecureField("sk-ant-…", text: $apiKey)
-                            .textContentType(.password)
-                            .autocorrectionDisabled()
-                        Button("Save Key") {
-                            KeychainHelper.save(key: "claude_api_key", value: apiKey)
-                            showKeySaved = true
-                        }
-                        .disabled(apiKey.isEmpty)
                     }
-                    .padding(.vertical, 4)
+                    .onChange(of: providerKind) { _, val in
+                        orchestrator.selectedProviderKind = val
+                    }
+
+                    if providerKind == .claude {
+                        apiKeyField(
+                            label: "Anthropic API Key",
+                            placeholder: "sk-ant-…",
+                            text: $claudeKey,
+                            keychainKey: "claude_api_key"
+                        )
+                    } else if providerKind == .deepseek {
+                        apiKeyField(
+                            label: "DeepSeek API Key",
+                            placeholder: "sk-…",
+                            text: $deepSeekKey,
+                            keychainKey: "deepseek_api_key"
+                        )
+                    } else {
+                        Text("Notes and meetings are summarised entirely on-device. No API key needed.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .padding(.vertical, 4)
+                    }
                 } header: {
                     Text("AI Settings")
                 } footer: {
-                    Text("Your API key is stored securely in the iOS Keychain. Get one at console.anthropic.com")
+                    Text("API keys are stored securely in the iOS Keychain. When offline, the app always falls back to on-device summarisation regardless of provider.")
                         .font(.caption)
                 }
 
@@ -46,9 +60,9 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                     HStack {
-                        Text("AI Model")
+                        Text("Active Provider")
                         Spacer()
-                        Text("claude-haiku-4-5")
+                        Text(currentModelLabel)
                             .foregroundStyle(.secondary)
                             .font(.system(.subheadline, design: .monospaced))
                     }
@@ -56,15 +70,44 @@ struct SettingsView: View {
 
                 // Data
                 Section("Data") {
-                    Button("Clear Saved API Key", role: .destructive) {
+                    Button("Clear Claude API Key", role: .destructive) {
                         KeychainHelper.delete(key: "claude_api_key")
-                        apiKey = ""
+                        claudeKey = ""
+                    }
+                    Button("Clear DeepSeek API Key", role: .destructive) {
+                        KeychainHelper.delete(key: "deepseek_api_key")
+                        deepSeekKey = ""
                     }
                 }
             }
             .navigationTitle("Settings")
             .toast(isPresented: $showKeySaved, message: "API key saved")
+            .onAppear { providerKind = orchestrator.selectedProviderKind }
         }
+    }
+
+    private var currentModelLabel: String {
+        switch providerKind {
+        case .claude: return "claude-haiku-4-5"
+        case .deepseek: return "deepseek-chat"
+        case .onDevice: return "on-device NLP"
+        }
+    }
+
+    private func apiKeyField(label: String, placeholder: String, text: Binding<String>, keychainKey: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(label)
+                .font(.subheadline)
+            SecureField(placeholder, text: text)
+                .textContentType(.password)
+                .autocorrectionDisabled()
+            Button("Save Key") {
+                KeychainHelper.save(key: keychainKey, value: text.wrappedValue)
+                showKeySaved = true
+            }
+            .disabled(text.wrappedValue.isEmpty)
+        }
+        .padding(.vertical, 4)
     }
 }
 

@@ -2,7 +2,9 @@ import Foundation
 import Network
 import SwiftData
 
-/// Coordinates AI processing: uses Claude API when online, falls back to on-device NLP.
+/// Coordinates AI processing: routes to the user-selected provider (Claude or
+/// DeepSeek) when online, and always falls back to on-device NLP if the
+/// network is unavailable, no key is configured, or the request fails.
 @MainActor
 public final class AIOrchestrator: ObservableObject {
 
@@ -12,7 +14,17 @@ public final class AIOrchestrator: ObservableObject {
     private let onDevice = OnDeviceNLPService()
     private let monitor = NWPathMonitor()
     private var isOnline: Bool = false
-    private var apiKey: String { KeychainHelper.load(key: "claude_api_key") ?? "" }
+
+    /// Provider the user picked in Settings. Defaults to Claude.
+    public var selectedProviderKind: AIProviderKind {
+        get {
+            guard let raw = UserDefaults.standard.string(forKey: "aiProviderKind"),
+                  let kind = AIProviderKind(rawValue: raw)
+            else { return .claude }
+            return kind
+        }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: "aiProviderKind") }
+    }
 
     public init() {
         let queue = DispatchQueue(label: "network.monitor")
@@ -28,7 +40,7 @@ public final class AIOrchestrator: ObservableObject {
         monitor.cancel()
     }
 
-    /// Processes the note: writes summary and action items back to SwiftData.
+    /// Processes a short quick-captured note: writes summary and action items back to SwiftData.
     public func process(note: Note, modelContext: ModelContext) async {
         guard !note.content.trimmingCharacters(in: .whitespaces).isEmpty else { return }
 
@@ -36,21 +48,8 @@ public final class AIOrchestrator: ObservableObject {
         lastError = nil
         defer { isProcessing = false }
 
-        let result: AIProcessingResult
+        let result = await summarise(text: note.content)
 
-        if isOnline && !apiKey.isEmpty {
-            do {
-                result = try await ClaudeAPIService(apiKey: apiKey).process(noteContent: note.content)
-            } catch {
-                lastError = error.localizedDescription
-                // Fall back to on-device
-                result = onDevice.process(noteContent: note.content)
-            }
-        } else {
-            result = onDevice.process(noteContent: note.content)
-        }
-
-        // Write results back on main actor (SwiftData context)
         note.summary = result.summary
         note.isProcessed = true
 
@@ -61,7 +60,78 @@ public final class AIOrchestrator: ObservableObject {
         }
 
         note.updatedAt = Date()
+        save(modelContext)
+    }
 
+    /// Processes a meeting transcript: writes overview, key points, decisions
+    /// and action items back to SwiftData.
+    public func processMeeting(note: Note, modelContext: ModelContext) async {
+        guard let transcript = note.transcript, !transcript.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+
+        isProcessing = true
+        lastError = nil
+        defer { isProcessing = false }
+
+        let result: MeetingProcessingResult
+
+        if let provider = currentProvider() {
+            do {
+                result = try await provider.processMeeting(transcript: transcript)
+            } catch {
+                lastError = error.localizedDescription
+                result = onDevice.processMeeting(transcript: transcript)
+            }
+        } else {
+            result = onDevice.processMeeting(transcript: transcript)
+        }
+
+        note.summary = result.summary
+        note.keyPoints = result.keyPoints
+        note.decisions = result.decisions
+        note.isProcessed = true
+
+        for actionTitle in result.actions where !actionTitle.isEmpty {
+            let item = ActionItem(title: actionTitle, note: note)
+            modelContext.insert(item)
+            note.actionItems.append(item)
+        }
+
+        note.updatedAt = Date()
+        save(modelContext)
+    }
+
+    // MARK: - Private
+
+    private func summarise(text: String) async -> AIProcessingResult {
+        guard let provider = currentProvider() else {
+            return onDevice.process(noteContent: text)
+        }
+        do {
+            return try await provider.process(noteContent: text)
+        } catch {
+            lastError = error.localizedDescription
+            return onDevice.process(noteContent: text)
+        }
+    }
+
+    /// Returns a live provider instance only when online and a key is configured
+    /// for the user's selected provider; otherwise nil (signals on-device fallback).
+    private func currentProvider() -> AIProvider? {
+        guard isOnline else { return nil }
+        let kind = selectedProviderKind
+        guard let keychainKey = kind.keychainKey,
+              let apiKey = KeychainHelper.load(key: keychainKey),
+              !apiKey.isEmpty
+        else { return nil }
+
+        switch kind {
+        case .claude: return ClaudeAPIService(apiKey: apiKey)
+        case .deepseek: return DeepSeekAPIService(apiKey: apiKey)
+        case .onDevice: return nil
+        }
+    }
+
+    private func save(_ modelContext: ModelContext) {
         do {
             try modelContext.save()
         } catch {

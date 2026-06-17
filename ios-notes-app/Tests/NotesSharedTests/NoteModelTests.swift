@@ -56,4 +56,44 @@ final class NoteModelTests: XCTestCase {
         item.isCompleted = true
         XCTAssertEqual(item.bucket, .done)
     }
+
+    func testNoteDefaultsToQuickType() {
+        let note = Note(content: "Quick note", category: .personal)
+        XCTAssertEqual(note.noteType, .quick)
+        XCTAssertNil(note.transcript)
+        XCTAssertNil(note.duration)
+        XCTAssertTrue(note.keyPoints.isEmpty)
+        XCTAssertTrue(note.decisions.isEmpty)
+        XCTAssertNil(note.formattedDuration)
+    }
+
+    func testNoteInitialisesAsMeeting() {
+        let note = Note(
+            content: "Standup",
+            category: .work,
+            noteType: .meeting,
+            transcript: "We discussed the roadmap.",
+            duration: 95
+        )
+        XCTAssertEqual(note.noteType, .meeting)
+        XCTAssertEqual(note.transcript, "We discussed the roadmap.")
+        XCTAssertEqual(note.duration, 95)
+    }
+
+    func testFormattedDurationUnderAnHour() {
+        let note = Note(content: "Standup", category: .work, noteType: .meeting, duration: 125)
+        XCTAssertEqual(note.formattedDuration, "2:05")
+    }
+
+    func testFormattedDurationOverAnHour() {
+        let note = Note(content: "Workshop", category: .work, noteType: .meeting, duration: 3725)
+        XCTAssertEqual(note.formattedDuration, "1:02:05")
+    }
+
+    func testNoteTypeDisplayNamesAndIcons() {
+        XCTAssertEqual(NoteType.quick.displayName, "Note")
+        XCTAssertEqual(NoteType.meeting.displayName, "Meeting")
+        XCTAssertEqual(NoteType.quick.icon, "note.text")
+        XCTAssertEqual(NoteType.meeting.icon, "person.2.wave.2.fill")
+    }
 }

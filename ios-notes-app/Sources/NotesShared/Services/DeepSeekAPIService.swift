@@ -1,22 +1,12 @@
 import Foundation
 
-/// Response decoded from Claude's structured JSON output
-public struct AIProcessingResult: Sendable {
-    public let summary: String
-    public let actions: [String]
-
-    public init(summary: String, actions: [String]) {
-        self.summary = summary
-        self.actions = actions
-    }
-}
-
-/// Calls the Anthropic Messages API to summarise a note and extract action items.
-public final class ClaudeAPIService: AIProvider {
+/// Calls the DeepSeek Chat Completions API (OpenAI-compatible) to summarise
+/// notes and meeting transcripts and extract action items.
+public final class DeepSeekAPIService: AIProvider {
 
     private let apiKey: String
-    private let baseURL = URL(string: "https://api.anthropic.com/v1/messages")!
-    private let model = "claude-haiku-4-5"
+    private let baseURL = URL(string: "https://api.deepseek.com/chat/completions")!
+    private let model = "deepseek-chat"
 
     public init(apiKey: String) {
         self.apiKey = apiKey
@@ -38,7 +28,7 @@ public final class ClaudeAPIService: AIProvider {
             let summary = parsed["summary"] as? String,
             let actions = parsed["actions"] as? [String]
         else {
-            throw ClaudeAPIError.invalidJSONContent(text)
+            throw DeepSeekAPIError.invalidJSONContent(text)
         }
 
         return AIProcessingResult(summary: summary, actions: actions)
@@ -62,7 +52,7 @@ public final class ClaudeAPIService: AIProvider {
             let decisions = parsed["decisions"] as? [String],
             let actions = parsed["actions"] as? [String]
         else {
-            throw ClaudeAPIError.invalidJSONContent(text)
+            throw DeepSeekAPIError.invalidJSONContent(text)
         }
 
         return MeetingProcessingResult(summary: summary, keyPoints: keyPoints, decisions: decisions, actions: actions)
@@ -74,8 +64,9 @@ public final class ClaudeAPIService: AIProvider {
         let body: [String: Any] = [
             "model": model,
             "max_tokens": maxTokens,
-            "system": system,
+            "response_format": ["type": "json_object"],
             "messages": [
+                ["role": "system", "content": system],
                 ["role": "user", "content": user]
             ]
         ]
@@ -83,39 +74,39 @@ public final class ClaudeAPIService: AIProvider {
         var request = URLRequest(url: baseURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
-        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
             let status = (response as? HTTPURLResponse)?.statusCode ?? -1
-            throw ClaudeAPIError.httpError(status)
+            throw DeepSeekAPIError.httpError(status)
         }
 
         guard
             let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-            let content = (json["content"] as? [[String: Any]])?.first,
-            let text = content["text"] as? String
+            let choices = json["choices"] as? [[String: Any]],
+            let message = choices.first?["message"] as? [String: Any],
+            let text = message["content"] as? String
         else {
-            throw ClaudeAPIError.unexpectedResponseFormat
+            throw DeepSeekAPIError.unexpectedResponseFormat
         }
 
         return text
     }
 }
 
-public enum ClaudeAPIError: LocalizedError {
+public enum DeepSeekAPIError: LocalizedError {
     case httpError(Int)
     case unexpectedResponseFormat
     case invalidJSONContent(String)
 
     public var errorDescription: String? {
         switch self {
-        case .httpError(let code): return "API error (HTTP \(code))"
-        case .unexpectedResponseFormat: return "Unexpected API response format"
-        case .invalidJSONContent(let text): return "Could not parse AI response: \(text.prefix(100))"
+        case .httpError(let code): return "DeepSeek API error (HTTP \(code))"
+        case .unexpectedResponseFormat: return "Unexpected DeepSeek response format"
+        case .invalidJSONContent(let text): return "Could not parse DeepSeek response: \(text.prefix(100))"
         }
     }
 }

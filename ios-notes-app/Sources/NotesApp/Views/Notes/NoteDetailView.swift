@@ -8,6 +8,7 @@ struct NoteDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var orchestrator: AIOrchestrator
     @State private var showDeleteConfirm = false
+    @State private var showTranscript = false
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -23,6 +24,16 @@ struct NoteDetailView: View {
                         .padding(.vertical, 5)
                         .background(note.category.color.opacity(0.12))
                         .clipShape(Capsule())
+
+                    if note.noteType == .meeting, let duration = note.formattedDuration {
+                        Label(duration, systemImage: "mic.fill")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.red)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Color.red.opacity(0.12))
+                            .clipShape(Capsule())
+                    }
 
                     Spacer()
 
@@ -40,9 +51,9 @@ struct NoteDetailView: View {
 
                 Divider()
 
-                // Full note content
+                // Title / content
                 Text(note.content)
-                    .font(.body)
+                    .font(note.noteType == .meeting ? .title3.weight(.semibold) : .body)
                     .foregroundStyle(AppColor.primaryText)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -74,6 +85,32 @@ struct NoteDetailView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
 
+                // Key points (meeting only)
+                if !note.keyPoints.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Key Points", systemImage: "list.bullet")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+
+                        ForEach(note.keyPoints, id: \.self) { point in
+                            bulletRow(point)
+                        }
+                    }
+                }
+
+                // Decisions (meeting only)
+                if !note.decisions.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Decisions", systemImage: "checkmark.seal")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+
+                        ForEach(note.decisions, id: \.self) { decision in
+                            bulletRow(decision)
+                        }
+                    }
+                }
+
                 // Action Items section
                 if !note.actionItems.isEmpty {
                     VStack(alignment: .leading, spacing: 10) {
@@ -87,13 +124,40 @@ struct NoteDetailView: View {
                     }
                 }
 
+                // Full transcript (meeting only)
+                if let transcript = note.transcript, !transcript.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Button {
+                            withAnimation { showTranscript.toggle() }
+                        } label: {
+                            Label("Full Transcript", systemImage: showTranscript ? "chevron.down" : "chevron.right")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
+
+                        if showTranscript {
+                            Text(transcript)
+                                .font(.subheadline)
+                                .foregroundStyle(AppColor.primaryText)
+                                .padding(12)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(AppColor.cardBackground)
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                        }
+                    }
+                }
+
                 // Re-process button
                 if note.isProcessed {
                     Button {
                         note.isProcessed = false
                         note.summary = nil
                         Task {
-                            await orchestrator.process(note: note, modelContext: modelContext)
+                            if note.noteType == .meeting {
+                                await orchestrator.processMeeting(note: note, modelContext: modelContext)
+                            } else {
+                                await orchestrator.process(note: note, modelContext: modelContext)
+                            }
                         }
                     } label: {
                         Label("Re-analyse with AI", systemImage: "arrow.clockwise")
@@ -124,6 +188,18 @@ struct NoteDetailView: View {
                 try? modelContext.save()
                 dismiss()
             }
+        }
+    }
+
+    private func bulletRow(_ text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Circle()
+                .fill(AppColor.primaryText.opacity(0.4))
+                .frame(width: 5, height: 5)
+                .padding(.top, 7)
+            Text(text)
+                .font(.subheadline)
+                .foregroundStyle(AppColor.primaryText)
         }
     }
 }
